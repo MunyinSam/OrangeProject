@@ -37,12 +37,16 @@ class MyBot(commands.Bot):
 
 #---------------------------------------------------------------------------------------------------
 # Deck Builder
+#---------------------------------------------------------------------------------------------------
+
+
+
 
 #---------------------------------------------------------------------------------------------------
 
 game_sessions = {}
 
-# 3 Buttons
+# 2 Buttons
 class MainMenuView(discord.ui.View):
     def __init__(self, ctx, room_id, player_id):
         super().__init__(timeout=None)  # Set timeout=None if you want the buttons to be always active
@@ -99,25 +103,27 @@ class MainMenuView(discord.ui.View):
         
         else:
             await interaction.response.send_message(f'You need at least 2 Players to start the game.', ephemeral=False)
-
     
     @discord.ui.button(label="Join", style=discord.ButtonStyle.blurple, custom_id="join_game")
     async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         room = Room.objects(id=self.room_id).first()
         
         if room and room.game_status == "waiting":
-            # Fetch the player object based on the ID of the user who clicked the button
             player = Player.objects(discord_id=str(interaction.user.id)).first()
             if player:
-                if player.id not in room.players:
-                    room.players.append(player.id)
+                if player.id not in [p.id for p in room.players]:
+                    room.players.append(player)
                     room.save()
                     await interaction.response.send_message(f'{interaction.user.display_name} has joined the game.', ephemeral=False)
                 else:
                     await interaction.response.send_message(f'You are already in the game.', ephemeral=True)
             else:
-                # Handle the case where no player object exists for the user
                 await interaction.response.send_message("You are not registered as a player in this game.", ephemeral=True)
+        else:
+            await interaction.response.send_message("The room is not available or the game has already started.", ephemeral=True)
+
+
+                
 
 #---------------------------------------------------------------------------------------------------
 
@@ -149,7 +155,10 @@ async def send_menu(ctx):
     
     await ctx.send(embed=embed, file=file, view=MainMenuView(ctx, lobby.id, player.id))
 
-
+@bot.command(name="game")
+async def start_game(ctx):
+    view = MainGameView(ctx)
+    await ctx.send("Click a button to start.", view=view)
 
 
 
